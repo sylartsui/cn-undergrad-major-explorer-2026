@@ -65,6 +65,16 @@
   .fgroup.open label.t::before{transform:rotate(90deg)}
   .fgroup .chips{display:none}
   .fgroup.open .chips{display:flex}
+  /* 录取院校：复选框复选列表（默认折叠，展开后逐行显示） */
+  .fgroup .chklist{display:none}
+  .fgroup.open .chklist{display:block}
+  .chklist{max-height:240px;overflow:auto;border:1px solid var(--border);border-radius:6px;padding:2px 0}
+  .chkrow{display:flex;align-items:center;gap:8px;padding:6px 10px;font-size:12px;color:var(--muted);cursor:pointer;user-select:none;line-height:1.3}
+  .chkrow:hover{background:var(--hover);color:var(--text)}
+  .chkrow input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px;cursor:pointer;flex:none;margin:0}
+  .chkrow.on{color:var(--accent)}
+  .chkrow small{opacity:.6;margin-left:auto}
+  .chkrow .ck-name{flex:1}
   input[type=text],input[type=number],select{width:100%;background:var(--chip);border:1px solid var(--border);
     color:var(--text);border-radius:6px;padding:7px 9px;font-size:13px;outline:none}
   input[type=text]:focus,input[type=number]:focus,select:focus{border-color:var(--accent)}
@@ -308,7 +318,7 @@
     <div class="fgroup">
       <label class="t">录取院校（可复选）<span id="schoolSel" style="opacity:.7"></span></label>
       <input type="text" id="schoolQ" placeholder="搜索学校名称…" style="margin-bottom:6px">
-      <div class="chips" id="fSchool" style="max-height:190px;overflow:auto"></div>
+      <div class="chklist" id="fSchool"></div>
       <div class="hint">基于 2026 上海本科录取分明细；仅 14 所院校有分专业数据</div>
     </div>
     <div class="fgroup">
@@ -959,12 +969,17 @@ function renderSchool(){
     .sort((a,b)=>ADM_SCHOOL.get(b).size-ADM_SCHOOL.get(a).size||a.localeCompare(b,'zh'));
   $('#fSchool').innerHTML=vals.length?vals.map(s=>{
     const n=ADM_SCHOOL.get(s).size, on=state.school.has(s);
-    return '<span class="chip'+(on?' on':'')+'" data-v="'+esc(s)+'" title="'+esc(s)+'：'+n+' 个专业">'+(on?'<b style="color:var(--accent2);margin-right:3px">✓</b>':'')+esc(s)+'<small>'+n+'</small></span>';
-  }).join(''):'<span class="hint">无匹配学校</span>';
+    return '<label class="chkrow'+(on?' on':'')+'" data-v="'+esc(s)+'" title="'+esc(s)+'：'+n+' 个专业">'+
+      '<input type="checkbox"'+(on?' checked':'')+'><span class="ck-name">'+esc(s)+'</span><small>'+n+'</small></label>';
+  }).join(''):'<div class="hint" style="padding:6px 10px">无匹配学校</div>';
   $('#schoolSel').textContent=state.school.size?'（已选 '+state.school.size+' · 与选科为并且）':'';
-  $('#fSchool').querySelectorAll('.chip').forEach(c=>c.onclick=()=>{
+  $('#fSchool').querySelectorAll('.chkrow').forEach(c=>c.onclick=e=>{
+    if(e.target.tagName==='INPUT') return; // 让 checkbox 原生切换，避免重复触发
+    const cb=c.querySelector('input'); cb.checked=!cb.checked; cb.dispatchEvent(new Event('change',{bubbles:true}));
+  });
+  $('#fSchool').querySelectorAll('input[type=checkbox]').forEach(cb=>cb.onchange=()=>{
     exitShowAll();
-    const v=c.dataset.v; state.school.has(v)?state.school.delete(v):state.school.add(v); state.page=1; renderSchool(); apply();
+    const v=cb.closest('.chkrow').dataset.v; cb.checked?state.school.add(v):state.school.delete(v); state.page=1; renderSchool(); apply();
   });
 }
 function renderSubject(){
