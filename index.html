@@ -725,7 +725,8 @@ function renderPath(){
   state.subj.forEach(v=>items.push({label:'选科要求', value:v,
     undo:()=>{state.subj.delete(v);renderSubject();state.page=1;apply();}}));
   const schoolQ=$('#schoolQ').value.trim();
-  if(schoolQ){
+  // 院校搜索框输入与复选框勾选互斥：有勾选时路径以所选为准；勾选全部取消后以所输为准
+  if(schoolQ && !state.school.size){
     const hits=[...ADM_SCHOOL.keys()].filter(s=>s.toLowerCase().includes(schoolQ.toLowerCase()));
     if(hits.length) hits.forEach(s=>items.push({label:'录取院校', value:s,
       undo:()=>{$('#schoolQ').value='';renderSchool();state.page=1;apply();}}));
