@@ -306,13 +306,13 @@
       <div class="hint">按专业自身的全国月收入筛选；仅 9 个专业有公开值，无薪资数据者不参与</div>
     </div>
     <div class="fgroup">
-      <label class="t">录取院校（有该校录取记录的专业）</label>
+      <label class="t">录取院校（可复选）<span id="schoolSel" style="opacity:.7"></span></label>
       <input type="text" id="schoolQ" placeholder="搜索学校名称…" style="margin-bottom:6px">
       <div class="chips" id="fSchool" style="max-height:190px;overflow:auto"></div>
       <div class="hint">基于 2026 上海本科录取分明细；仅 14 所院校有分专业数据</div>
     </div>
     <div class="fgroup">
-      <label class="t">选科要求（有该选科录取记录的专业）</label>
+      <label class="t">选科要求（可复选）<span id="subjSel" style="opacity:.7"></span></label>
       <div class="chips" id="fSubject"></div>
       <div class="hint">按上海高考选科口径归一化：物=物理、化=化学、物和化=物理+化学</div>
     </div>
@@ -959,8 +959,9 @@ function renderSchool(){
     .sort((a,b)=>ADM_SCHOOL.get(b).size-ADM_SCHOOL.get(a).size||a.localeCompare(b,'zh'));
   $('#fSchool').innerHTML=vals.length?vals.map(s=>{
     const n=ADM_SCHOOL.get(s).size, on=state.school.has(s);
-    return '<span class="chip'+(on?' on':'')+'" data-v="'+esc(s)+'" title="'+esc(s)+'：'+n+' 个专业">'+esc(s)+'<small>'+n+'</small></span>';
+    return '<span class="chip'+(on?' on':'')+'" data-v="'+esc(s)+'" title="'+esc(s)+'：'+n+' 个专业">'+(on?'<b style="color:var(--accent2);margin-right:3px">✓</b>':'')+esc(s)+'<small>'+n+'</small></span>';
   }).join(''):'<span class="hint">无匹配学校</span>';
+  $('#schoolSel').textContent=state.school.size?'（已选 '+state.school.size+' · 与选科为并且）':'';
   $('#fSchool').querySelectorAll('.chip').forEach(c=>c.onclick=()=>{
     exitShowAll();
     const v=c.dataset.v; state.school.has(v)?state.school.delete(v):state.school.add(v); state.page=1; renderSchool(); apply();
@@ -970,8 +971,9 @@ function renderSubject(){
   const vals=[...ADM_SUBJ.keys()].sort((a,b)=>ADM_SUBJ.get(b).size-ADM_SUBJ.get(a).size||a.localeCompare(b,'zh'));
   $('#fSubject').innerHTML=vals.map(s=>{
     const n=ADM_SUBJ.get(s).size, on=state.subj.has(s);
-    return '<span class="chip'+(on?' on':'')+'" data-v="'+esc(s)+'" title="'+esc(s)+'：'+n+' 个专业">'+esc(s)+'<small>'+n+'</small></span>';
+    return '<span class="chip'+(on?' on':'')+'" data-v="'+esc(s)+'" title="'+esc(s)+'：'+n+' 个专业">'+(on?'<b style="color:var(--accent2);margin-right:3px">✓</b>':'')+esc(s)+'<small>'+n+'</small></span>';
   }).join('');
+  $('#subjSel').textContent=state.subj.size?'（已选 '+state.subj.size+' · 与院校为并且）':'';
   $('#fSubject').querySelectorAll('.chip').forEach(c=>c.onclick=()=>{
     exitShowAll();
     const v=c.dataset.v; state.subj.has(v)?state.subj.delete(v):state.subj.add(v); state.page=1; renderSubject(); apply();
