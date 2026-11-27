@@ -240,7 +240,7 @@
   .utag{display:inline-block;margin-left:5px;padding:0 4px;border-radius:3px;font-size:10px;line-height:15px;
     font-weight:700;vertical-align:middle;white-space:nowrap}
   .utag.u985{background:#fff1f0;color:#b42318;border:1px solid #f3a6a0}
-  .utag.u211{background:#eef4ff;color:#1d4ed8;border:1px solid #9db8f5}
+  .utag.u211{background:#eef4ff;color:#1d4ed8;border:1px solid #9db8f5}.stag9{display:inline-block;margin-left:4px;padding:0 3px;border-radius:3px;font-size:10px;line-height:14px;font-weight:700;vertical-align:middle;background:#fff1f0;color:#b42318;border:1px solid #f3a6a0}.stag2{display:inline-block;margin-left:3px;padding:0 3px;border-radius:3px;font-size:10px;line-height:14px;font-weight:700;vertical-align:middle;background:#eef4ff;color:#1d4ed8;border:1px solid #9db8f5}
   .sg-lnk{display:inline-block;margin-left:6px;padding:1px 5px;font-size:11px;color:#1a7f5a;background:#e6f6ef;
     border:1px solid #1a7f5a;border-radius:3px;text-decoration:none;cursor:pointer;white-space:nowrap}
   .sg-lnk:hover{background:#c9eddd}
@@ -325,7 +325,7 @@
   <div><h1>普通高等学校本科专业目录 · 2026</h1>
   <div class="sub">教育部 2026 年 4 月发布 · 全部字段可组合筛选</div></div>
   <span class="badge" id="srcCount"></span>
-  <span class="badge ver" id="verBadge" title="点击查看2026上海录取分数来源列表" style="cursor:pointer">v0.10.33</span>
+  <span class="badge ver" id="verBadge" title="点击查看2026上海录取分数来源列表" style="cursor:pointer">v0.10.34</span>
   <div class="header-actions">
     <span class="showall-toggle" id="showAllToggle" title="开启：忽略全部筛选条件，显示所有数据；关闭：恢复原筛选结果">
       <span class="tl" id="showAllLabel">显示全部</span>
@@ -1253,6 +1253,13 @@ function stagHtml(s){
   if(v===1) return '<span class="utag u211" title="211工程高校">211</span>';
   return '';
 }
+// 筛选框院校 chip 的紧凑角标：985→9（红），211→2（蓝）；985 同时为 211 时两个都标
+function stagChipHtml(s){
+  const v=STAG[String(s==null?'':s)]||0;
+  if(v===2) return '<span class="stag9" title="985工程高校">9</span><span class="stag2" title="211工程高校">2</span>';
+  if(v===1) return '<span class="stag2" title="211工程高校">2</span>';
+  return '';
+}
 // 上海院校判定：名称含“上海”或命中上海高校简称精确表（避免华东交大/东华理工等外地校误判）
 const SH_ALIAS=new Set(['上外贤达','上工程','上经贸大','上财','东华大学','中侨大学','二工大','同济大学','复旦医学','复旦大学','交大医学','海医大','华东理工大学','上大','上理工','上科大','华师大','华东师大','华理','立信','上音','上戏','华政','上外','上师大','上中医','上应大','天华','建桥','兴伟','视觉','二军医','海军军医','复旦医学院','上海交大医学院','上海交通']);
 const isSH=n=>{n=String(n==null?'':n);return n.indexOf('上海')>=0||SH_ALIAS.has(n);};
@@ -1754,7 +1761,7 @@ function sRenderSchoolChips(){
     .sort((a,b)=>sSchoolCnt[b]-sSchoolCnt[a]||a.localeCompare(b,'zh'));
   $('#sSchool').innerHTML=vals.length?vals.map(v=>{
     const on=sstate.school.has(v);
-    return '<span class="chip'+(on?' on':'')+'" data-v="'+esc(v)+'" title="'+esc(v)+'：'+sSchoolCnt[v]+' 条">'+(on?'<b style="color:var(--accent2);margin-right:3px">✓</b>':'')+esc(v)+'<small>'+sSchoolCnt[v]+'</small></span>';
+    return '<span class="chip'+(on?' on':'')+'" data-v="'+esc(v)+'" title="'+esc(v)+'：'+sSchoolCnt[v]+' 条'+(stagText(v)?' · '+stagText(v):'')+'">'+(on?'<b style="color:var(--accent2);margin-right:3px">✓</b>':'')+esc(v)+stagChipHtml(v)+'<small>'+sSchoolCnt[v]+'</small></span>';
   }).join(''):'<span class="hint" style="padding:6px">无匹配院校</span>';
   $('#sSchSel').textContent=sstate.prov.size?'（已选 '+sstate.school.size+' · 限 '+sstate.prov.size+' 省）':(sstate.school.size?'（已选 '+sstate.school.size+'）':'');
   sBindChips('#sSchool',sstate.school,sRenderSchoolChips);
