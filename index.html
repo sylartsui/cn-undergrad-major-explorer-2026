@@ -240,7 +240,7 @@
   .utag{display:inline-block;margin-left:5px;padding:0 4px;border-radius:3px;font-size:10px;line-height:15px;
     font-weight:700;vertical-align:middle;white-space:nowrap}
   .utag.u985{background:#fff1f0;color:#b42318;border:1px solid #f3a6a0}
-  .utag.u211{background:#eef4ff;color:#1d4ed8;border:1px solid #9db8f5}.stag9{display:inline-block;margin-left:4px;padding:0 3px;border-radius:3px;font-size:10px;line-height:14px;font-weight:700;vertical-align:middle;background:#fff1f0;color:#b42318;border:1px solid #f3a6a0}.stag2{display:inline-block;margin-left:3px;padding:0 3px;border-radius:3px;font-size:10px;line-height:14px;font-weight:700;vertical-align:middle;background:#eef4ff;color:#1d4ed8;border:1px solid #9db8f5}.stagmin{display:inline-block;margin-left:3px;padding:0 3px;border-radius:3px;font-size:10px;line-height:14px;font-weight:700;vertical-align:middle;background:#f3f0ff;color:#6d28d9;border:1px solid #c4b5fd}
+  .utag.u211{background:#eef4ff;color:#1d4ed8;border:1px solid #9db8f5}.stag9{display:inline-block;margin-left:4px;padding:0 3px;border-radius:3px;font-size:10px;line-height:14px;font-weight:700;vertical-align:middle;background:#fff1f0;color:#b42318;border:1px solid #f3a6a0}.stag2{display:inline-block;margin-left:3px;padding:0 3px;border-radius:3px;font-size:10px;line-height:14px;font-weight:700;vertical-align:middle;background:#eef4ff;color:#1d4ed8;border:1px solid #9db8f5}.stagmin{display:inline-block;margin-left:3px;padding:0 3px;border-radius:3px;font-size:10px;line-height:14px;font-weight:700;vertical-align:middle;background:#f3f0ff;color:#6d28d9;border:1px solid #c4b5fd}.sc-dang{display:inline-block;margin-left:3px;padding:0 3px;border-radius:3px;font-size:10px;line-height:14px;font-weight:700;vertical-align:middle;background:#fff7e6;color:#b45309;border:1px solid #fcd34d;cursor:help}
   .sg-lnk{display:inline-block;margin-left:6px;padding:1px 5px;font-size:11px;color:#1a7f5a;background:#e6f6ef;
     border:1px solid #1a7f5a;border-radius:3px;text-decoration:none;cursor:pointer;white-space:nowrap}
   .sg-lnk:hover{background:#c9eddd}
@@ -325,7 +325,7 @@
   <div><h1>普通高等学校本科专业目录 · 2026</h1>
   <div class="sub">教育部 2026 年 4 月发布 · 全部字段可组合筛选</div></div>
   <span class="badge" id="srcCount"></span>
-  <span class="badge ver" id="verBadge" title="点击查看2026上海录取分数来源列表" style="cursor:pointer">v0.10.35</span>
+  <span class="badge ver" id="verBadge" title="点击查看2026上海录取分数来源列表" style="cursor:pointer">v0.10.36</span>
   <div class="header-actions">
     <span class="showall-toggle" id="showAllToggle" title="开启：忽略全部筛选条件，显示所有数据；关闭：恢复原筛选结果">
       <span class="tl" id="showAllLabel">显示全部</span>
@@ -1603,14 +1603,16 @@ function sSortRows(rows){
 // 按「院校 + 具体专业原文」取对应年份的分专业分数
 // 全半角统一后原文精确匹配 → 合作办学归一匹配 → 主体唯一回退；
 // 不再用 2026 目录匹配键兜底，杜绝括注专业（如中外合作）套用本体分数
-const MAJ_SCORE={26:{},25:{}}, MAJ_SCHOOL={26:{},25:{}};
+// 取分口径：有分专业最低分用最低分；2026 无最低分才用院校专业组投档线并记「档」；2025 无最低分不取分
+const MAJ_SCORE={26:{},25:{}}, MAJ_DANG={26:new Set(),25:new Set()}, MAJ_SCHOOL={26:{},25:{}};
 function majNorm(s){ return String(s||'').replace(/^\d{6}[A-Za-z]?\s*/,'').replace(/[（）]/g,m=>m==='（'?'(':')').replace(/\s+/g,''); }
 function majCoop(s){ return majNorm(s).replace(/中外合作办学|中外合作|中美合作|中德合作|中法合作|中英合作|中日合作|中澳合作|中加合作/g,'合作办学'); }
 function majBase(s){ return majNorm(s).replace(/\(.*$/,''); }
 Object.keys(ADM.data).forEach(nm=>ADM.data[nm].rows.forEach(r=>{
-  const sch=admD(r[0]), raw=admD(r[3]), v=admD(r[8])||admD(r[6]);
+  const sch=admD(r[0]), raw=admD(r[3]), lo=admD(r[6]), tg=admD(r[8]), v=lo||tg;
   if(!sch||!raw||!v) return;
-  const k=sch+'|'+majNorm(raw); if(!MAJ_SCORE['26'][k]) MAJ_SCORE['26'][k]=v;
+  const k=sch+'|'+majNorm(raw);
+  if(!MAJ_SCORE['26'][k]){ MAJ_SCORE['26'][k]=v; if(!lo&&tg) MAJ_DANG['26'].add(k); }
 }));
 Object.keys(Y25.data).forEach(nm=>Y25.data[nm].forEach(r=>{
   const sch=y25D(r[0]), raw=y25D(r[3]), v=y25D(r[4]);
@@ -1634,20 +1636,26 @@ Object.keys(Y25.data).forEach(nm=>Y25.data[nm].forEach(r=>{
   if(n<o.min)o.min=n; if(n>o.max)o.max=n;
 }));
 function schRange(which,name){ const o=SCH_RANGE[which][name]; return o&&isFinite(o.min)?String(o.min)+'~'+String(o.max):'—'; }
-function majorScore(school,which,major){
+function majorScoreKey(school,which,major){
   const map=MAJ_SCORE[which], arr=MAJ_SCHOOL[which][school]||[];
-  let k=school+'|'+majNorm(major); if(map[k]) return map[k];
-  const cm=majCoop(major), hit=arr.find(x=>majCoop(x)===cm); if(hit) return map[school+'|'+hit];
+  let k=school+'|'+majNorm(major); if(map[k]) return k;
+  const cm=majCoop(major), hit=arr.find(x=>majCoop(x)===cm); if(hit) return school+'|'+hit;
   const b=majBase(major), same=arr.filter(x=>majBase(x)===b);
-  if(same.length===1 && new Set(same).size===1) return map[school+'|'+same[0]];
+  if(same.length===1 && new Set(same).size===1) return school+'|'+same[0];
   return null;
+}
+function majorScore(school,which,major){ const k=majorScoreKey(school,which,major); return k?MAJ_SCORE[which][k]:null; }
+function scoreWithDang(v,which,school,major){
+  const k=majorScoreKey(school,which,major);
+  const d=(which==='26' && k && MAJ_DANG['26'].has(k))?'<span class="sc-dang" title="该分数为院校专业组投档线，非分专业最低分">档</span>':'';
+  return esc(v)+d;
 }
 function sScoreHtml(si,which,major,matchMajor){
   const sc=which==='26'?'2026':'2025';
   const focusAttr=(major?' data-major="'+esc(major)+'"':'')+(matchMajor?' data-match="'+esc(matchMajor)+'"':'');
   const v=majorScore(sD(si),which,major);
   if(!v) return '<span class="score none" data-school="'+esc(sD(si))+'" data-y="'+which+'"'+focusAttr+' title="查看 '+esc(sD(si))+' 的院校档案（暂无'+sc+'年分专业分数）">—</span>';
-  return '<span class="score" data-school="'+esc(sD(si))+'" data-y="'+which+'"'+focusAttr+' title="查看 '+esc(sD(si))+' 的'+sc+'年分专业分数明细">'+esc(v)+'</span>';
+  return '<span class="score" data-school="'+esc(sD(si))+'" data-y="'+which+'"'+focusAttr+' title="查看 '+esc(sD(si))+' 的'+sc+'年分专业分数明细">'+scoreWithDang(v,which,sD(si),major)+'</span>';
 }
 function sApply(){
   scur=sSortRows(sFiltered());
@@ -1879,6 +1887,7 @@ function ssGrpLineHtml(name){
   return h;
 }
 // 2027 在沪选科专业视图：所有学校都可见，按选科分组、组内按专业代码升序
+function ssScoreCell(name,which,mj){ const v=majorScore(name,which,mj); return v?scoreWithDang(v,which,name,mj):'—'; }
 function ss2027Html(name,rows){
   let h=ssSubjBar();
   const rF=rows.filter(r=>sSubjOK(sD(r[4])));
@@ -1891,7 +1900,7 @@ function ss2027Html(name,rows){
     const arr=bg[k]; arr.sort((a,b)=>String(sD(a[2])).localeCompare(String(sD(b[2]))));
     arr.forEach(r=>{
       const mj=sD(r[3]);
-      h+='<tr'+ssFocusCls(mj)+'><td>'+dpMajor(mj)+'</td><td>'+esc(sD(r[2]))+'</td><td>'+esc(sD(r[4]))+'</td><td>'+esc(majorScore(name,'26',mj)||'—')+'</td><td>'+esc(majorScore(name,'25',mj)||'—')+'</td><td>'+(r[5]>=0?matchDp(sD(r[5])):'—')+'</td></tr>';
+      h+='<tr'+ssFocusCls(mj)+'><td>'+dpMajor(mj)+'</td><td>'+esc(sD(r[2]))+'</td><td>'+esc(sD(r[4]))+'</td><td>'+ssScoreCell(name,'26',mj)+'</td><td>'+ssScoreCell(name,'25',mj)+'</td><td>'+(r[5]>=0?matchDp(sD(r[5])):'—')+'</td></tr>';
     });
   });
   return h+'</tbody></table></div>';
