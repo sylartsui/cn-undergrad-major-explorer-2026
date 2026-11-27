@@ -93,6 +93,7 @@
   .btn:hover{background:var(--hover);border-color:var(--accent)}
   .btn.primary{background:#1f6feb;border-color:#1f6feb;color:#fff}
   .btn.primary:hover{background:#388bfd}
+  .unc-tab.on,.unc-tagf.on,.unc-sc.on{background:#1f6feb33;border-color:var(--accent);color:var(--accent);font-weight:600}
   .btnrow{display:flex;gap:8px;margin-top:16px;border-top:1px solid var(--border);padding-top:14px}
   .btnrow .btn{flex:1}
   main{min-width:0}
@@ -286,7 +287,7 @@
   <div><h1>普通高等学校本科专业目录 · 2026</h1>
   <div class="sub">教育部 2026 年 4 月发布 · 全部字段可组合筛选</div></div>
   <span class="badge" id="srcCount"></span>
-  <span class="badge ver" id="verBadge" title="点击查看2026上海录取分数来源列表" style="cursor:pointer">v0.9.17</span>
+  <span class="badge ver" id="verBadge" title="点击查看2026上海录取分数来源列表" style="cursor:pointer">v0.9.19</span>
   <div class="header-actions">
     <span class="showall-toggle" id="showAllToggle" title="开启：忽略全部筛选条件，显示所有数据；关闭：恢复原筛选结果">
       <span class="tl" id="showAllLabel">显示全部</span>
@@ -1091,6 +1092,9 @@ function stagHtml(s){
   if(v===1) return '<span class="utag u211" title="211工程高校">211</span>';
   return '';
 }
+// 上海院校判定：名称含“上海”或命中上海高校简称精确表（避免华东交大/东华理工等外地校误判）
+const SH_ALIAS=new Set(['上外贤达','上工程','上经贸大','上财','东华大学','中侨大学','二工大','同济大学','复旦医学','复旦大学','交大医学','海医大','华东理工大学','上大','上理工','上科大','华师大','华东师大','华理','立信','上音','上戏','华政','上外','上师大','上中医','上应大','天华','建桥','兴伟','视觉','二军医','海军军医','复旦医学院','上海交大医学院','上海交通']);
+const isSH=n=>{n=String(n==null?'':n);return n.indexOf('上海')>=0||SH_ALIAS.has(n);};
 function uncSu(g){ const d=UNC_SU[String(g==null?'':g)]; return d?d.su:''; }
 function suTd(g){
   const d=UNC_SU[String(g==null?'':g)];
@@ -1106,14 +1110,19 @@ function openUnc(){
     '<button class="btn unc-tab on" data-t="grp">院校专业组投档线（'+g.length+'）</button>'+
     '<button class="btn unc-tab" data-t="unmap">非本科目录专业名（'+u.length+'）</button>'+
     '<button class="btn unc-tagf" data-f="985" title="只看985高校（同时也是211）">985</button>'+
-    '<button class="btn unc-tagf" data-f="211" title="只看211高校（含985）">211</button></div>'+
+    '<button class="btn unc-tagf" data-f="211" title="只看211高校（含985）">211</button>'+
+    '<span style="color:var(--muted);font-size:11px;margin-left:6px">院校地域</span>'+
+    '<button class="btn unc-sc on" data-sc="all" title="显示全部院校">全部院校</button>'+
+    '<button class="btn unc-sc" data-sc="sh" title="只显示上海院校">上海院校</button>'+
+    '<button class="btn unc-sc" data-sc="nonsh" title="只显示非上海院校">非上海院校</button></div>'+
     '<input id="uncQ" type="text" placeholder="输入学校名 / 专业组 / 选科 / 专业名筛选" style="width:100%;margin-top:8px;padding:6px 9px;border:1px solid var(--border);border-radius:6px;background:var(--panel2);color:var(--text);font-size:12px">';
-  let tab='grp', f985=false, f211=false;
+  let tab='grp', f985=false, f211=false, sc='all';
   const tagOK=sch=>{const v=STAG[String(sch==null?'':sch)]||0;return (!f985&&!f211)||(f985&&v===2)||(f211&&v>=1);};
+  const scOK=sch=>sc==='all'||(sc==='sh'?isSH(sch):!isSH(sch));
   const draw=()=>{
     const kw=($('#uncQ').value||'').trim().toLowerCase();
     if(tab==='grp'){
-      const rs=g.filter(r=>tagOK(r[6])&&(!kw||r[0].toLowerCase().includes(kw)||r[2].toLowerCase().includes(kw)||uncSu(r[2]).toLowerCase().includes(kw)||stagText(r[6]).toLowerCase().includes(kw)));
+      const rs=g.filter(r=>tagOK(r[6])&&scOK(r[6])&&(!kw||r[0].toLowerCase().includes(kw)||r[2].toLowerCase().includes(kw)||uncSu(r[2]).toLowerCase().includes(kw)||stagText(r[6]).toLowerCase().includes(kw)));
       if(!rs.length){ $('#uncBody').innerHTML='<div style="color:var(--muted);font-size:12px;padding:8px 0">无匹配院校专业组</div>'; return; }
       let h='<table class="adm-tb"><thead><tr><th>来源类型</th><th>批次</th><th>专业组 / 学校标签</th><th>选科要求</th><th>投档线</th><th>来源名称</th><th>来源URL</th></tr></thead><tbody>';
       rs.forEach(r=>{ h+='<tr><td>'+esc(r[0])+'</td><td>'+esc(r[1]||'—')+'</td><td>'+esc(r[2]||'—')+stagHtml(r[6])+'</td>'+suTd(r[2])+
@@ -1121,7 +1130,7 @@ function openUnc(){
         '<td class="src">'+(r[5]?'<a href="'+esc(r[5])+'" target="_blank" rel="noopener">原文</a>':'—')+'</td></tr>'; });
       $('#uncBody').innerHTML=h+'</tbody></table>';
     } else {
-      const rs=u.filter(r=>tagOK(r[0])&&(!kw||r[0].toLowerCase().includes(kw)||r[4].toLowerCase().includes(kw)||uncSu(r[2]).toLowerCase().includes(kw)||stagText(r[0]).toLowerCase().includes(kw)));
+      const rs=u.filter(r=>tagOK(r[0])&&scOK(r[0])&&(!kw||r[0].toLowerCase().includes(kw)||r[4].toLowerCase().includes(kw)||uncSu(r[2]).toLowerCase().includes(kw)||stagText(r[0]).toLowerCase().includes(kw)));
       if(!rs.length){ $('#uncBody').innerHTML='<div style="color:var(--muted);font-size:12px;padding:8px 0">无匹配专业名</div>'; return; }
       let h='<table class="adm-tb"><thead><tr><th>学校</th><th>批次</th><th>专业组</th><th>选科要求</th><th>专业名（非本科目录）</th><th>投档线</th><th>来源URL</th></tr></thead><tbody>';
       rs.forEach(r=>{ h+='<tr><td>'+esc(r[0])+stagHtml(r[0])+'</td><td>'+esc(r[1]||'—')+'</td><td>'+esc(r[2]||'—')+'</td>'+suTd(r[2])+
@@ -1139,6 +1148,10 @@ function openUnc(){
   document.querySelectorAll('.unc-tagf').forEach(b=>b.onclick=()=>{
     if(b.dataset.f==='985') f985=!f985; else f211=!f211;
     b.classList.toggle('on', b.dataset.f==='985'?f985:f211); draw();
+  });
+  document.querySelectorAll('.unc-sc').forEach(b=>b.onclick=()=>{
+    document.querySelectorAll('.unc-sc').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+    sc=b.dataset.sc; draw();
   });
   draw();
   $('#uncBody').scrollTop=0;
