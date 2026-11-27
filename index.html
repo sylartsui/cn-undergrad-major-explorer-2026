@@ -277,6 +277,12 @@
     padding:7px 9px;border-bottom:1px solid var(--border);text-align:left}
   .adm-tb td{padding:7px 9px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:top}
   .adm-tb tr:hover td{background:var(--hover)}
+  .adm-tb tr.ss-focus-row td{background:rgba(210,153,34,.18)!important;
+    box-shadow:inset 0 1px 0 rgba(210,153,34,.5),inset 0 -1px 0 rgba(210,153,34,.5)}
+  .adm-tb tr.ss-focus-row td:first-child{box-shadow:inset 3px 0 0 #d29922,inset 0 1px 0 rgba(210,153,34,.5),inset 0 -1px 0 rgba(210,153,34,.5)}
+  html[data-theme="light"] .adm-tb tr.ss-focus-row td{background:#fff6d9!important;
+    box-shadow:inset 0 1px 0 #e3b341,inset 0 -1px 0 #e3b341}
+  html[data-theme="light"] .adm-tb tr.ss-focus-row td:first-child{box-shadow:inset 3px 0 0 #d29922,inset 0 1px 0 #e3b341,inset 0 -1px 0 #e3b341}
   .adm-tb .num{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--accent);font-weight:600}
   .adm-tb .src a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--linkbd)}
   .adm-tb .src a:hover{border-bottom-style:solid;color:var(--linkhover)}
@@ -319,7 +325,7 @@
   <div><h1>普通高等学校本科专业目录 · 2026</h1>
   <div class="sub">教育部 2026 年 4 月发布 · 全部字段可组合筛选</div></div>
   <span class="badge" id="srcCount"></span>
-  <span class="badge ver" id="verBadge" title="点击查看2026上海录取分数来源列表" style="cursor:pointer">v0.10.14</span>
+  <span class="badge ver" id="verBadge" title="点击查看2026上海录取分数来源列表" style="cursor:pointer">v0.10.21</span>
   <div class="header-actions">
     <span class="showall-toggle" id="showAllToggle" title="开启：忽略全部筛选条件，显示所有数据；关闭：恢复原筛选结果">
       <span class="tl" id="showAllLabel">显示全部</span>
@@ -1449,7 +1455,29 @@ renderMenlei();renderClass();renderAttr();renderDeg();renderOld();renderSchool()
 // 左侧各类别默认折叠，点击标题展开/折叠（搜索框始终保留）
 document.querySelectorAll('.fgroup > label.t').forEach(l=>{
   l.title='点击展开 / 折叠本类别';
-  l.onclick=()=>l.parentElement.classList.toggle('open');
+  l.onclick=()=>{ const g=l.parentElement; g.classList.toggle('open'); delete g.dataset.autoOpen; };
+});
+// 光标进入带选项列表的筛选文本框时展开该组；失焦且文本框为空时收起，但人工点标题展开的除外
+// （全文检索/代码前缀/范围等无选项列表的组不参与）
+document.querySelectorAll('.fgroup input').forEach(inp=>{
+  const g=inp.closest('.fgroup');
+  const hasOpts=g && (g.querySelector('.chips')||g.querySelector('.chklist'));
+  const expand=()=>{
+    if(!hasOpts || g.classList.contains('open')) return; // 已展开（含人工展开）不自动标记
+    g.classList.add('open'); g.dataset.autoOpen='1';
+  };
+  inp.addEventListener('focus',expand);
+  inp.addEventListener('input',expand);
+  inp.addEventListener('blur',()=>{
+    setTimeout(()=>{
+      if(!hasOpts || g.dataset.autoOpen!=='1') return;   // 非自动展开（人工展开）不收起
+      if(inp.value.trim()) return;
+      if(g.contains(document.activeElement)) return;      // 焦点仍在同组内
+      if(g.dataset.clickInside){ delete g.dataset.clickInside; return; } // 刚点击了同组内的选项
+      g.classList.remove('open'); delete g.dataset.autoOpen;
+    },140);
+  });
+  if(g) g.addEventListener('mousedown',()=>{ g.dataset.clickInside='1'; setTimeout(()=>{ delete g.dataset.clickInside; },220); });
 });
 
 ['#prefix','#pMin','#pMax','#clsQ','#degQ','#salMin','#salMax','#schoolQ'].forEach(id=>$(id).addEventListener('input',()=>debounce(()=>{
@@ -1546,10 +1574,11 @@ function sSortRows(rows){
     if(typeof x==='number'||typeof y==='number') return (Number(y)-Number(x))||sD(a[1]).localeCompare(sD(b[1]),'zh');
     return String(x).localeCompare(String(y),'zh'); });
 }
-function sScoreHtml(si,which){
+function sScoreHtml(si,which,major,matchMajor){
   const e = which==='26'?SCH.sc26[si]:SCH.sc25[si], sc=which==='26'?'2026':'2025';
-  if(!e) return '<span class="score none" data-school="'+esc(sD(si))+'" data-y="'+which+'" title="查看 '+esc(sD(si))+' 的院校档案（暂无'+sc+'年分数）">—</span>';
-  return '<span class="score" data-school="'+esc(sD(si))+'" data-y="'+which+'" title="查看 '+esc(sD(si))+' 的'+sc+'年录取分数明细">'+esc(e[1]+'–'+e[2])+' <small>('+e[0]+')</small></span>';
+  const focusAttr=(major?' data-major="'+esc(major)+'"':'')+(matchMajor?' data-match="'+esc(matchMajor)+'"':'');
+  if(!e) return '<span class="score none" data-school="'+esc(sD(si))+'" data-y="'+which+'"'+focusAttr+' title="查看 '+esc(sD(si))+' 的院校档案（暂无'+sc+'年分数）">—</span>';
+  return '<span class="score" data-school="'+esc(sD(si))+'" data-y="'+which+'"'+focusAttr+' title="查看 '+esc(sD(si))+' 的'+sc+'年录取分数明细">'+esc(e[1]+'–'+e[2])+' <small>('+e[0]+')</small></span>';
 }
 function sApply(){
   scur=sSortRows(sFiltered());
@@ -1578,7 +1607,7 @@ function sApply(){
       '<td class="mname">'+L('major',maj,null,'')+'</td>'+
       '<td>'+L('subj',sD(r[4]),null,'')+'</td>'+
       '<td>'+(mj? '<a class="match" data-major="'+esc(mj.split(' ').slice(1).join(' '))+'" title="切到专业模式查看该专业">'+esc(mj)+'</a>' : '<span style="color:var(--muted)">—</span>')+'</td>'+
-      '<td>'+(firstCombo?sScoreHtml(r[1],'26'):'')+'</td><td>'+(firstCombo?sScoreHtml(r[1],'25'):'')+'</td></tr>';
+      '<td>'+(firstCombo?sScoreHtml(r[1],'26',sD(r[3]),r[5]>=0?sD(r[5]):''):'')+'</td><td>'+(firstCombo?sScoreHtml(r[1],'25',sD(r[3]),r[5]>=0?sD(r[5]):''):'')+'</td></tr>';
   }).join('');
   sRenderPath();
   const pager=$('#sPager');
@@ -1703,8 +1732,9 @@ function sSubjCat(v){
   return '未标注';
 }
 const SS_SUBJ_ORDER=['不限','物和化','物','化','政','史','生','地','综合改革','艺术体育','未标注'];
-let ssCurName='', ssSubj='all';
+let ssCurName='', ssSubj='all', ssFocusMajors=new Set();
 function sSubjOK(v){ return ssSubj==='all' || sSubjCat(v)===ssSubj; }
+const ssFocusCls=n=>ssFocusMajors.has(n)?' class="ss-focus-row"':'';
 function sGrp26(r){ return sgKey(r)||''; }
 function sGrp25(r){
   const t=String(y25D(r[2])||'');
@@ -1758,7 +1788,7 @@ function renderSSBody(){
       const g=GRP[k];
       h+=sGrpHtml(k?(g?g.g:k.split('|')[1]):'未标注专业组', k&&g?('组投档线 '+(g.sc||'—')+' ｜ 选科 '+(g.su||'不限')):'', arr.length);
       arr.forEach(x=>{const r=x[1];
-        h+='<tr><td>'+dpMajor(x[0])+'</td><td>'+esc(admD(r[1])||'—')+'</td><td>'+esc(admD(r[2])||'—')+'</td><td>'+esc(admD(r[6])||'—')+'</td><td>'+esc(admD(r[8])||'—')+'</td><td>'+esc(admD(r[10])||'—')+'</td></tr>';
+        h+='<tr'+ssFocusCls(x[0])+'><td>'+dpMajor(x[0])+'</td><td>'+esc(admD(r[1])||'—')+'</td><td>'+esc(admD(r[2])||'—')+'</td><td>'+esc(admD(r[6])||'—')+'</td><td>'+esc(admD(r[8])||'—')+'</td><td>'+esc(admD(r[10])||'—')+'</td></tr>';
       });
     });
     h+='</tbody></table></div>';
@@ -1773,7 +1803,7 @@ function renderSSBody(){
       const arr=bg[k]; arr.sort((a,b)=>sNum(y25D(b[1][4]))-sNum(y25D(a[1][4])));
       h+=sGrpHtml(k||'未标注专业组','',arr.length);
       arr.forEach(x=>{const r=x[1];
-        h+='<tr><td>'+dpMajor(x[0])+'</td><td>'+esc(y25D(r[1])||'—')+'</td><td>'+esc(y25D(r[2])||'—')+'</td><td>'+esc(y25D(r[4])||'—')+'</td><td>'+esc(y25D(r[5])||'—')+'</td><td>'+esc(y25D(r[7])||'—')+'</td></tr>';
+        h+='<tr'+ssFocusCls(x[0])+'><td>'+dpMajor(x[0])+'</td><td>'+esc(y25D(r[1])||'—')+'</td><td>'+esc(y25D(r[2])||'—')+'</td><td>'+esc(y25D(r[4])||'—')+'</td><td>'+esc(y25D(r[5])||'—')+'</td><td>'+esc(y25D(r[7])||'—')+'</td></tr>';
       });
     });
     h+='</tbody></table></div>';
@@ -1789,7 +1819,7 @@ function renderSSBody(){
       ks.forEach(k=>{
         const arr=bg[k]; arr.sort((a,b)=>String(sD(a[2])).localeCompare(String(sD(b[2]))));
         arr.forEach(r=>{
-          h+='<tr><td>'+dpMajor(sD(r[3]))+'</td><td>'+esc(sD(r[2]))+'</td><td>'+esc(sD(r[4]))+'</td><td>—</td><td>—</td><td>'+(r[5]>=0?matchDp(sD(r[5])):'—')+'</td></tr>';
+          h+='<tr'+ssFocusCls(sD(r[3]))+'><td>'+dpMajor(sD(r[3]))+'</td><td>'+esc(sD(r[2]))+'</td><td>'+esc(sD(r[4]))+'</td><td>—</td><td>—</td><td>'+(r[5]>=0?matchDp(sD(r[5])):'—')+'</td></tr>';
         });
       });
       h+='</tbody></table></div>';
@@ -1799,11 +1829,12 @@ function renderSSBody(){
   }
   $('#ssmBody').innerHTML=h;
 }
-function openSSchool(name, focusYear){
+function openSSchool(name, focusYear, focusMajor, focusMatchMajor){
   const rows=SCH.rows.filter(r=>sD(r[1])===name);
   if(!rows.length) return;
   const si=rows[0][1], st=tagOf(si), prov=sD(rows[0][0]);
   ssCurName=name; ssSubj='all';
+  ssFocusMajors=new Set([focusMajor,focusMatchMajor].filter(Boolean));
   $('#ssmTitle').textContent=name;
   $('#ssmLead').innerHTML='<b>省份：</b>'+esc(prov)+' ｜ <b>标签：</b>'+(st===2?'985 + 211':st===1?'211':'—')+
     ' ｜ <b>2027 专业条目：</b>'+rows.length+' ｜ <b>已匹配2026目录：</b>'+rows.filter(r=>r[5]>=0).length+
@@ -1848,7 +1879,7 @@ $('#sExport').onclick=()=>{
   a.download='2027院校专业选科要求_筛选结果.csv';a.click();URL.revokeObjectURL(a.href);
 };
 $('#sTbody').addEventListener('click',e=>{
-  const sc=e.target.closest('.score'); if(sc){openSSchool(sc.dataset.school,sc.dataset.y);return;}
+  const sc=e.target.closest('.score'); if(sc){openSSchool(sc.dataset.school,sc.dataset.y,sc.dataset.major,sc.dataset.match);return;}
   const sl=e.target.closest('.sch-link'); if(sl){openSSchool(sl.dataset.school);return;}
   const mt=e.target.closest('.match'); if(mt){ const nm=mt.dataset.major; if(nm){setAppMode('major');exitShowAll();state.links=[];addLink('name',nm);} return; }
   const a=e.target.closest('.flink'); if(!a) return;
