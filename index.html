@@ -325,7 +325,7 @@
   <div><h1>普通高等学校本科专业目录 · 2026</h1>
   <div class="sub">教育部 2026 年 4 月发布 · 全部字段可组合筛选</div></div>
   <span class="badge" id="srcCount"></span>
-  <span class="badge ver" id="verBadge" title="点击查看2026上海录取分数来源列表" style="cursor:pointer">v0.10.21</span>
+  <span class="badge ver" id="verBadge" title="点击查看2026上海录取分数来源列表" style="cursor:pointer">v0.10.24</span>
   <div class="header-actions">
     <span class="showall-toggle" id="showAllToggle" title="开启：忽略全部筛选条件，显示所有数据；关闭：恢复原筛选结果">
       <span class="tl" id="showAllLabel">显示全部</span>
@@ -1535,6 +1535,18 @@ const sstate = {prov:new Set(), school:new Set(), major:new Set(), tag:new Set()
 let scur=[], appMode='major';
 const score26Of = si => SCH.sc26[si], score25Of = si => SCH.sc25[si];
 const tagOf = si => SCH.stag[si] || 0;
+// 院校 + 具体专业是否真有分专业录取线；表格分数只在该专业有明细时显示
+const ADM_SCH_MAJ=new Map(), Y25_SCH_MAJ=new Map();
+Object.keys(ADM.data).forEach(nm=>ADM.data[nm].rows.forEach(r=>{
+  const sch=admD(r[0]); if(!sch) return;
+  if(!ADM_SCH_MAJ.has(sch)) ADM_SCH_MAJ.set(sch,new Set());
+  ADM_SCH_MAJ.get(sch).add(nm);
+}));
+Object.keys(Y25.data).forEach(nm=>Y25.data[nm].forEach(r=>{
+  const sch=y25D(r[0]); if(!sch) return;
+  if(!Y25_SCH_MAJ.has(sch)) Y25_SCH_MAJ.set(sch,new Set());
+  Y25_SCH_MAJ.get(sch).add(nm);
+}));
 function scTagOK(si){
   const t=tagOf(si), S=sstate.tag; if(!S.size) return true;
   return [...S].some(x=> x==='985'? t===2 : x==='211'? t>=1 : t===0);
@@ -1574,10 +1586,10 @@ function sSortRows(rows){
     if(typeof x==='number'||typeof y==='number') return (Number(y)-Number(x))||sD(a[1]).localeCompare(sD(b[1]),'zh');
     return String(x).localeCompare(String(y),'zh'); });
 }
-function sScoreHtml(si,which,major,matchMajor){
+function sScoreHtml(si,which,major,matchMajor,forceNone){
   const e = which==='26'?SCH.sc26[si]:SCH.sc25[si], sc=which==='26'?'2026':'2025';
   const focusAttr=(major?' data-major="'+esc(major)+'"':'')+(matchMajor?' data-match="'+esc(matchMajor)+'"':'');
-  if(!e) return '<span class="score none" data-school="'+esc(sD(si))+'" data-y="'+which+'"'+focusAttr+' title="查看 '+esc(sD(si))+' 的院校档案（暂无'+sc+'年分数）">—</span>';
+  if(forceNone||!e) return '<span class="score none" data-school="'+esc(sD(si))+'" data-y="'+which+'"'+focusAttr+' title="查看 '+esc(sD(si))+' 的院校档案（暂无'+sc+'年分专业分数）">—</span>';
   return '<span class="score" data-school="'+esc(sD(si))+'" data-y="'+which+'"'+focusAttr+' title="查看 '+esc(sD(si))+' 的'+sc+'年录取分数明细">'+esc(e[1]+'–'+e[2])+' <small>('+e[0]+')</small></span>';
 }
 function sApply(){
@@ -1598,16 +1610,19 @@ function sApply(){
   $('#sTbody').innerHTML=rows.map((r,i)=>{
     const sch=sD(r[1]), maj=sD(r[3]), code=sD(r[2]);
     const mj=r[5]>=0?sD(r[5]):'';
+    const majKeys=[sD(r[3]), r[5]>=0?String(sD(r[5])).replace(/^\d{6}\s*/,''):''].filter(Boolean);
+    const aSet=ADM_SCH_MAJ.get(sch), ySet=Y25_SCH_MAJ.get(sch);
+    const has26=majKeys.some(m=>aSet&&aSet.has(m)), has25=majKeys.some(m=>ySet&&ySet.has(m));
     const comboKey=r[1]+'|'+r[3];
     const firstCombo=!seenCombo.has(comboKey); seenCombo.add(comboKey);
     return '<tr class="datarow"><td>'+(start+i+1)+'</td>'+
       '<td class="prov">'+L('prov',sD(r[0]),null,'')+'</td>'+
-      '<td class="name"><a class="sch-link" data-school="'+esc(sch)+'" title="查看院校档案">'+esc(sch)+'</a>'+stagHtml(sch)+'</td>'+
+      '<td class="name"><a class="sch-link" data-school="'+esc(sch)+'" data-major="'+esc(sD(r[3]))+'" data-match="'+esc(r[5]>=0?sD(r[5]):'')+'" title="查看院校档案">'+esc(sch)+'</a>'+stagHtml(sch)+'</td>'+
       '<td><span class="code">'+L('code',code,null,'')+'</span></td>'+
       '<td class="mname">'+L('major',maj,null,'')+'</td>'+
       '<td>'+L('subj',sD(r[4]),null,'')+'</td>'+
       '<td>'+(mj? '<a class="match" data-major="'+esc(mj.split(' ').slice(1).join(' '))+'" title="切到专业模式查看该专业">'+esc(mj)+'</a>' : '<span style="color:var(--muted)">—</span>')+'</td>'+
-      '<td>'+(firstCombo?sScoreHtml(r[1],'26',sD(r[3]),r[5]>=0?sD(r[5]):''):'')+'</td><td>'+(firstCombo?sScoreHtml(r[1],'25',sD(r[3]),r[5]>=0?sD(r[5]):''):'')+'</td></tr>';
+      '<td>'+(firstCombo?sScoreHtml(r[1],'26',sD(r[3]),r[5]>=0?sD(r[5]):'',!has26):'')+'</td><td>'+(firstCombo?sScoreHtml(r[1],'25',sD(r[3]),r[5]>=0?sD(r[5]):'',!has25):'')+'</td></tr>';
   }).join('');
   sRenderPath();
   const pager=$('#sPager');
@@ -1808,6 +1823,18 @@ function renderSSBody(){
     });
     h+='</tbody></table></div>';
   }
+  // 所选专业若两年分专业数据均无记录，补一条高亮占位行，保证进入时能看见所选专业
+  const focusHit=(admRows||[]).some(x=>ssFocusMajors.has(x[0])) || (yRows||[]).some(x=>ssFocusMajors.has(x[0]));
+  if(ssFocusMajors.size && (admRows.length||yRows.length) && !focusHit){
+    const fr=rows.find(r=>ssFocusMajors.has(sD(r[3])) || (r[5]>=0 && ssFocusMajors.has(sD(r[5]))));
+    if(fr){
+      h+=sYearSep();
+      h+='<div class="sect">'+sYearHead('所选','进入时所选专业','表格分数为院校级区间，非该专业分；暂无分专业线','var(--warn)')+
+        '<table class="adm-tb" style="font-size:12px"><thead><tr><th>专业</th><th>专业代码</th><th>科目要求</th><th>2026目录匹配</th></tr></thead><tbody>'+
+        '<tr class="ss-focus-row"><td>'+dpMajor(sD(fr[3]))+'</td><td>'+esc(sD(fr[2]))+'</td><td>'+esc(sD(fr[4]))+'</td><td>'+(fr[5]>=0?matchDp(sD(fr[5])):'—')+'</td></tr>'+
+        '</tbody></table></div>';
+    }
+  }
   // 无分数学校：不显示空提示，改为按选科分组展示 2027 专业，分数列留空
   if(!admRows.length && !yRows.length){
     const rF=rows.filter(r=>sSubjOK(sD(r[4])));
@@ -1880,7 +1907,7 @@ $('#sExport').onclick=()=>{
 };
 $('#sTbody').addEventListener('click',e=>{
   const sc=e.target.closest('.score'); if(sc){openSSchool(sc.dataset.school,sc.dataset.y,sc.dataset.major,sc.dataset.match);return;}
-  const sl=e.target.closest('.sch-link'); if(sl){openSSchool(sl.dataset.school);return;}
+  const sl=e.target.closest('.sch-link'); if(sl){openSSchool(sl.dataset.school,'',sl.dataset.major,sl.dataset.match);return;}
   const mt=e.target.closest('.match'); if(mt){ const nm=mt.dataset.major; if(nm){setAppMode('major');exitShowAll();state.links=[];addLink('name',nm);} return; }
   const a=e.target.closest('.flink'); if(!a) return;
   const k=a.dataset.sk, v=a.dataset.v;
