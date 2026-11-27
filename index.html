@@ -175,8 +175,10 @@
     transition:transform .28s ease;z-index:60;display:flex;flex-direction:column}
   body.detail-open .detail-panel{transform:translateX(0)}
   .detail-panel.in-modal{z-index:130}
-  .mj-dp{color:var(--accent);cursor:pointer;border-bottom:1px dotted var(--linkbd)}
-  .mj-dp:hover{color:var(--linkhover);border-bottom-style:solid}
+  .mj-dp{color:var(--accent);cursor:pointer;text-decoration:none}
+  .mj-dp:hover{color:var(--linkhover)}
+  .md-dp{color:inherit;cursor:pointer;text-decoration:none;border-bottom:1px dotted var(--linkbd)}
+  .md-dp:hover{border-bottom-style:solid}
   .dp-head{flex:none;padding:16px 20px;border-bottom:1px solid var(--border);
     background:linear-gradient(120deg,var(--head1),var(--head2));display:flex;align-items:center;gap:12px}
   .dp-head>div{min-width:0}
@@ -282,6 +284,14 @@
   .adm-foot{flex:none;padding:10px 18px;border-top:1px solid var(--border);font-size:11px;
     color:var(--muted);line-height:1.6;background:var(--panel2)}
   .adm-empty{padding:40px;text-align:center;color:var(--muted)}
+  /* 弹窗内选科筛选条 */
+  .ss-subbar{position:sticky;top:0;z-index:3;display:flex;flex-wrap:wrap;align-items:center;gap:6px;
+    padding:8px 10px;margin:0 0 12px;background:var(--panel2);border:1px solid var(--border);border-radius:7px}
+  .ss-subbar>span{font-size:11px;color:var(--muted);font-weight:600;margin-right:2px}
+  .ss-chip{border:1px solid var(--border);background:var(--panel);color:var(--muted);font-size:11px;
+    padding:3px 10px;border-radius:12px;cursor:pointer;transition:.12s}
+  .ss-chip:hover{background:var(--chip);color:var(--text)}
+  .ss-chip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
   /* 专业/学校 模式切换 */
   .mode-sw{display:flex;align-items:center;gap:4px;background:var(--panel2);border:1px solid var(--border);border-radius:16px;padding:3px}
   .mode-sw button{border:0;background:transparent;color:var(--muted);font-size:12px;padding:4px 13px;border-radius:12px;cursor:pointer;transition:.12s}
@@ -290,7 +300,8 @@
   .sch-tb .num{font-variant-numeric:tabular-nums}
   .sch-tb .score{color:var(--accent2);font-weight:600;cursor:pointer;border-bottom:1px dashed var(--accent2)}
   .sch-tb .score:hover{background:var(--chip)}
-  .sch-tb .score.none{color:var(--muted);font-weight:400;cursor:default;border-bottom:0}
+  .sch-tb .score.none{color:var(--muted);font-weight:400;cursor:pointer;border-bottom:1px dashed var(--linkbd)}
+  .sch-tb .score.none:hover{background:var(--chip);color:var(--text)}
   .sch-tb .match{color:var(--accent);cursor:pointer}
   .sch-tb .match:hover{text-decoration:underline}
   .sch-tb .prov{color:var(--muted)}
@@ -308,7 +319,7 @@
   <div><h1>普通高等学校本科专业目录 · 2026</h1>
   <div class="sub">教育部 2026 年 4 月发布 · 全部字段可组合筛选</div></div>
   <span class="badge" id="srcCount"></span>
-  <span class="badge ver" id="verBadge" title="点击查看2026上海录取分数来源列表" style="cursor:pointer">v0.10.8</span>
+  <span class="badge ver" id="verBadge" title="点击查看2026上海录取分数来源列表" style="cursor:pointer">v0.10.14</span>
   <div class="header-actions">
     <span class="showall-toggle" id="showAllToggle" title="开启：忽略全部筛选条件，显示所有数据；关闭：恢复原筛选结果">
       <span class="tl" id="showAllLabel">显示全部</span>
@@ -607,6 +618,13 @@ const expIcon = r => EXT.ext.p[r.code] ? '<i class="exp" data-rid="'+r.i+'" titl
 const nameRid = n => { const r=DATA.find(x=>x.name===n); return r?r.i:null; };
 const dpMajor = n => { const rid=nameRid(n); return rid!=null
   ? '<a class="mj-dp" data-rid="'+rid+'" title="向右滑出该专业的解读与就业说明页">'+esc(n)+'</a>' : esc(n); };
+// 2026目录匹配列：按代码反查目录专业，保持原字体颜色，点击滑出解读
+const matchDp = v => {
+  const s=String(v==null?'':v); if(!s||s==='—') return '—';
+  const m=s.match(/^(\d{6})/); if(!m) return esc(s);
+  const r=DATA.find(x=>x.code===m[1]);
+  return r ? '<a class="md-dp" data-rid="'+r.i+'" title="滑出该专业的解读与就业说明页">'+esc(s)+'</a>' : esc(s);
+};
 let dpRid=null;
 function renderDetail(r){
   const e=EXT.ext.p[r.code], S=EXT.shared;
@@ -1530,7 +1548,7 @@ function sSortRows(rows){
 }
 function sScoreHtml(si,which){
   const e = which==='26'?SCH.sc26[si]:SCH.sc25[si], sc=which==='26'?'2026':'2025';
-  if(!e) return '<span class="score none">—</span>';
+  if(!e) return '<span class="score none" data-school="'+esc(sD(si))+'" data-y="'+which+'" title="查看 '+esc(sD(si))+' 的院校档案（暂无'+sc+'年分数）">—</span>';
   return '<span class="score" data-school="'+esc(sD(si))+'" data-y="'+which+'" title="查看 '+esc(sD(si))+' 的'+sc+'年录取分数明细">'+esc(e[1]+'–'+e[2])+' <small>('+e[0]+')</small></span>';
 }
 function sApply(){
@@ -1667,8 +1685,26 @@ function sReset(keepPath){
   sstate.page=1; $('#sSchoolQ').value=''; $('#sMajorQ').value=''; $('#sProvQ').value='';
   sRenderSchoolChips(); sRenderMajorChips(); sRenderProv(); sRenderChips(); sApply();
 }
-// 院校档案弹窗：专业组归类辅助
+// 院校档案弹窗：专业组归类 + 选科筛选辅助
 function sNum(v){ const m=String(v==null?'':v).match(/\d+(?:\.\d+)?/); return m?Number(m[0]):0; }
+// 把 2026/2025 杂乱选科字段与 2027 科目要求归一到同一档位
+function sSubjCat(v){
+  const t=String(v==null?'':v);
+  if(t.indexOf('不限')>=0) return '不限';
+  if(t.indexOf('化')>=0 && t.indexOf('物')>=0) return '物和化';
+  if(t.indexOf('物')>=0) return '物';
+  if(t.indexOf('化')>=0) return '化';
+  if(t.indexOf('政')>=0) return '政';
+  if(t.indexOf('史')>=0) return '史';
+  if(t.indexOf('生')>=0) return '生';
+  if(t.indexOf('地')>=0) return '地';
+  if(t.indexOf('综合改革')>=0||t.indexOf('文理综合')>=0) return '综合改革';
+  if(t.indexOf('艺术')>=0||t.indexOf('美术')>=0||t.indexOf('体育')>=0) return '艺术体育';
+  return '未标注';
+}
+const SS_SUBJ_ORDER=['不限','物和化','物','化','政','史','生','地','综合改革','艺术体育','未标注'];
+let ssCurName='', ssSubj='all';
+function sSubjOK(v){ return ssSubj==='all' || sSubjCat(v)===ssSubj; }
 function sGrp26(r){ return sgKey(r)||''; }
 function sGrp25(r){
   const t=String(y25D(r[2])||'');
@@ -1692,17 +1728,26 @@ function sYearSep(){
   return '<div style="height:1px;background:linear-gradient(90deg,transparent,var(--border) 15%,var(--border) 85%,transparent);margin:26px 0 22px"></div>';
 }
 // 院校档案弹窗
-function openSSchool(name, focusYear){
+// 弹窗内选科筛选条：从该校 2027 科目 + 两年选科字段汇总可用档位
+function ssSubjBar(){
+  const name=ssCurName, set=new Set();
+  SCH.rows.forEach(r=>{if(sD(r[1])===name) set.add(sSubjCat(sD(r[4])));});
+  Object.keys(ADM.data).forEach(nm=>ADM.data[nm].rows.forEach(r=>{if(admD(r[0])===name) set.add(sSubjCat(admD(r[2])));}));
+  Object.keys(Y25.data).forEach(nm=>Y25.data[nm].forEach(r=>{if(y25D(r[0])===name) set.add(sSubjCat(y25D(r[2])));}));
+  const opts=SS_SUBJ_ORDER.filter(v=>set.has(v));
+  let h='<div class="ss-subbar"><span>选科筛选：</span><button class="ss-chip'+(ssSubj==='all'?' on':'')+'" data-v="all">全部</button>';
+  opts.forEach(v=>{h+='<button class="ss-chip'+(ssSubj===v?' on':'')+'" data-v="'+v+'">'+esc(v)+'</button>';});
+  return h+'</div>';
+}
+function renderSSBody(){
+  const name=ssCurName;
   const rows=SCH.rows.filter(r=>sD(r[1])===name);
   if(!rows.length) return;
-  const si=rows[0][1], st=tagOf(si), prov=sD(rows[0][0]);
-  $('#ssmTitle').textContent=name;
-  $('#ssmLead').innerHTML='<b>省份：</b>'+esc(prov)+' ｜ <b>标签：</b>'+(st===2?'985 + 211':st===1?'211':'—')+
-    ' ｜ <b>2027 专业条目：</b>'+rows.length+' ｜ <b>已匹配2026目录：</b>'+rows.filter(r=>r[5]>=0).length+
-    ' ｜ <b>2026在沪分：</b>'+(SCH.sc26[si]?SCH.sc26[si][1]+'–'+SCH.sc26[si][2]:'—')+
-    ' ｜ <b>2025分：</b>'+(SCH.sc25[si]?SCH.sc25[si][1]+'–'+SCH.sc25[si][2]:'—');
-  let h='';
-  const admRows=[]; Object.keys(ADM.data).forEach(nm=>ADM.data[nm].rows.forEach(r=>{if(admD(r[0])===name) admRows.push([nm,r]);}));
+  let h=ssSubjBar();
+  const admAll=[]; Object.keys(ADM.data).forEach(nm=>ADM.data[nm].rows.forEach(r=>{if(admD(r[0])===name) admAll.push([nm,r]);}));
+  const yAll=[]; Object.keys(Y25.data).forEach(nm=>Y25.data[nm].forEach(r=>{if(y25D(r[0])===name) yAll.push([nm,r]);}));
+  const admRows=admAll.filter(x=>sSubjOK(admD(x[1][2])));
+  const yRows=yAll.filter(x=>sSubjOK(y25D(x[1][2])));
   if(admRows.length){
     const bg={}; admRows.forEach(x=>{const k=sGrp26(x[1]); (bg[k]||(bg[k]=[])).push(x);});
     const ks=Object.keys(bg).sort((a,b)=>a&&!b?1:(!a&&b?-1:a.localeCompare(b,'zh')));
@@ -1718,7 +1763,6 @@ function openSSchool(name, focusYear){
     });
     h+='</tbody></table></div>';
   }
-  const yRows=[]; Object.keys(Y25.data).forEach(nm=>Y25.data[nm].forEach(r=>{if(y25D(r[0])===name) yRows.push([nm,r]);}));
   if(yRows.length){
     const bg={}; yRows.forEach(x=>{const k=sGrp25(x[1]); (bg[k]||(bg[k]=[])).push(x);});
     const ks=Object.keys(bg).sort((a,b)=>a&&!b?1:(!a&&b?-1:a.localeCompare(b,'zh')));
@@ -1734,13 +1778,46 @@ function openSSchool(name, focusYear){
     });
     h+='</tbody></table></div>';
   }
+  // 无分数学校：不显示空提示，改为按选科分组展示 2027 专业，分数列留空
+  if(!admRows.length && !yRows.length){
+    const rF=rows.filter(r=>sSubjOK(sD(r[4])));
+    if(rF.length){
+      const bg={}; rF.forEach(r=>{const k=sSubjCat(sD(r[4])); (bg[k]||(bg[k]=[])).push(r);});
+      const ks=Object.keys(bg).sort((a,b)=>SS_SUBJ_ORDER.indexOf(a)-SS_SUBJ_ORDER.indexOf(b));
+      h+='<div class="sect">'+sYearHead('2027','在沪选科专业（分数列留空）',rF.length+' 个专业 · '+ks.length+' 个选科组 · 组内按专业代码升序','var(--muted)')+
+        '<table class="adm-tb" style="font-size:12px"><thead><tr><th>专业</th><th>专业代码</th><th>科目要求</th><th>2026分</th><th>2025分</th><th>2026目录匹配</th></tr></thead><tbody>';
+      ks.forEach(k=>{
+        const arr=bg[k]; arr.sort((a,b)=>String(sD(a[2])).localeCompare(String(sD(b[2]))));
+        arr.forEach(r=>{
+          h+='<tr><td>'+dpMajor(sD(r[3]))+'</td><td>'+esc(sD(r[2]))+'</td><td>'+esc(sD(r[4]))+'</td><td>—</td><td>—</td><td>'+(r[5]>=0?matchDp(sD(r[5])):'—')+'</td></tr>';
+        });
+      });
+      h+='</tbody></table></div>';
+    } else {
+      h+='<div style="padding:28px 20px;text-align:center;color:var(--muted)">该选科下没有匹配的专业或分数记录。</div>';
+    }
+  }
   $('#ssmBody').innerHTML=h;
+}
+function openSSchool(name, focusYear){
+  const rows=SCH.rows.filter(r=>sD(r[1])===name);
+  if(!rows.length) return;
+  const si=rows[0][1], st=tagOf(si), prov=sD(rows[0][0]);
+  ssCurName=name; ssSubj='all';
+  $('#ssmTitle').textContent=name;
+  $('#ssmLead').innerHTML='<b>省份：</b>'+esc(prov)+' ｜ <b>标签：</b>'+(st===2?'985 + 211':st===1?'211':'—')+
+    ' ｜ <b>2027 专业条目：</b>'+rows.length+' ｜ <b>已匹配2026目录：</b>'+rows.filter(r=>r[5]>=0).length+
+    ' ｜ <b>2026在沪分：</b>'+(SCH.sc26[si]?SCH.sc26[si][1]+'–'+SCH.sc26[si][2]:'—')+
+    ' ｜ <b>2025分：</b>'+(SCH.sc25[si]?SCH.sc25[si][1]+'–'+SCH.sc25[si][2]:'—');
+  renderSSBody();
   $('#sSchModal').classList.add('open');
   if(focusYear){ setTimeout(()=>{const els=document.querySelectorAll('#ssmBody .sec-t');const t=focusYear==='26'?'2026 在沪录取分数':'2025 分专业线';els.forEach(e=>{if(e.textContent.includes(t)) e.scrollIntoView({block:'start'});});},60); }
 }
 function closeSSchool(){ $('#sSchModal').classList.remove('open'); if(document.body.classList.contains('detail-open')) closeDetail(); }
 $('#ssmBody').addEventListener('click',e=>{
-  const t=e.target.closest('.mj-dp'); if(!t) return;
+  const c=e.target.closest('.ss-chip');
+  if(c){ ssSubj=c.dataset.v; renderSSBody(); $('#ssmBody').scrollTop=0; return; }
+  const t=e.target.closest('.mj-dp,.md-dp'); if(!t) return;
   e.stopPropagation(); openDetail(t.dataset.rid,true);
 });
 
